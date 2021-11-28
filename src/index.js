@@ -596,7 +596,7 @@ window.addEventListener("DOMContentLoaded", (event) => {
 			for (let i = 0; i < logs.length; i += 1) {
 				logListContainer.innerHTML += `<div class="log">
           <span>${logs[i].value.user}</span>
-          <strong>${logs[i].value.action}</strong>
+          <strong>${logs[i].key}. ${logs[i].value.action}</strong>
 		  </div>`;
 			}
 		} catch (e) {

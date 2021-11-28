@@ -126,7 +126,7 @@ export function viewVotes(): MapEntry<string, Vote>[] {
 }
 
 export function viewLogs(): MapEntry<number, ActionLog>[] {
-	return logs.entries();
+	return logs.entries().slice(-20);
 }
 
 export function removeCandidate(candidateId: string): CallResponse {
