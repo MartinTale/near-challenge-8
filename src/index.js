@@ -3,367 +3,377 @@ import "regenerator-runtime/runtime";
 import { initContract, login, logout } from "./utils";
 
 import getConfig from "./config";
-import Big from "big.js";
-import { connectableObservableDescriptor } from "rxjs/internal/observable/ConnectableObservable";
 const { networkId } = getConfig("development");
-
-// global variable used throughout
-let currentGreeting;
 
 const BOATLOAD_OF_GAS = "300000000000000";
 
-const submitButton = document.querySelector("form button");
+window.addEventListener("DOMContentLoaded", (event) => {
+	const avatarContainer = document.getElementById("avatar-container");
+	let currentAvatar = Date.now().toString();
+	let currentName = "Martin Tale";
 
-const avatarContainer = document.getElementById("avatar-container");
-let currentAvatar = Date.now().toString();
-let currentName = "Martin Tale";
+	const LOADING_SVG = `<svg xmlns="http://www.w3.org/2000/svg" class="loading" viewBox="0 0 24 24"><path d="M13.75 22c0 .966-.783 1.75-1.75 1.75s-1.75-.784-1.75-1.75.783-1.75 1.75-1.75 1.75.784 1.75 1.75zm-1.75-22c-1.104 0-2 .896-2 2s.896 2 2 2 2-.896 2-2-.896-2-2-2zm10 10.75c.689 0 1.249.561 1.249 1.25 0 .69-.56 1.25-1.249 1.25-.69 0-1.249-.559-1.249-1.25 0-.689.559-1.25 1.249-1.25zm-22 1.25c0 1.105.896 2 2 2s2-.895 2-2c0-1.104-.896-2-2-2s-2 .896-2 2zm19-8c.551 0 1 .449 1 1 0 .553-.449 1.002-1 1-.551 0-1-.447-1-.998 0-.553.449-1.002 1-1.002zm0 13.5c.828 0 1.5.672 1.5 1.5s-.672 1.501-1.502 1.5c-.826 0-1.498-.671-1.498-1.499 0-.829.672-1.501 1.5-1.501zm-14-14.5c1.104 0 2 .896 2 2s-.896 2-2.001 2c-1.103 0-1.999-.895-1.999-2s.896-2 2-2zm0 14c1.104 0 2 .896 2 2s-.896 2-2.001 2c-1.103 0-1.999-.895-1.999-2s.896-2 2-2z"/></svg>`;
+	console.log(document.body);
+	console.log(document.getElementById("new-candidate-button"));
+	document.getElementById("new-candidate-button").onclick = (e) => {
+		document.getElementById("new-candidate-popup").style.display = "flex";
+		document.getElementById("signed-in-flow").style.filter = "blur(5px)";
+	};
 
-const LOADING_SVG = `<svg xmlns="http://www.w3.org/2000/svg" class="loading" viewBox="0 0 24 24"><path d="M13.75 22c0 .966-.783 1.75-1.75 1.75s-1.75-.784-1.75-1.75.783-1.75 1.75-1.75 1.75.784 1.75 1.75zm-1.75-22c-1.104 0-2 .896-2 2s.896 2 2 2 2-.896 2-2-.896-2-2-2zm10 10.75c.689 0 1.249.561 1.249 1.25 0 .69-.56 1.25-1.249 1.25-.69 0-1.249-.559-1.249-1.25 0-.689.559-1.25 1.249-1.25zm-22 1.25c0 1.105.896 2 2 2s2-.895 2-2c0-1.104-.896-2-2-2s-2 .896-2 2zm19-8c.551 0 1 .449 1 1 0 .553-.449 1.002-1 1-.551 0-1-.447-1-.998 0-.553.449-1.002 1-1.002zm0 13.5c.828 0 1.5.672 1.5 1.5s-.672 1.501-1.502 1.5c-.826 0-1.498-.671-1.498-1.499 0-.829.672-1.501 1.5-1.501zm-14-14.5c1.104 0 2 .896 2 2s-.896 2-2.001 2c-1.103 0-1.999-.895-1.999-2s.896-2 2-2zm0 14c1.104 0 2 .896 2 2s-.896 2-2.001 2c-1.103 0-1.999-.895-1.999-2s.896-2 2-2z"/></svg>`;
-
-document.getElementById("new-candidate-button").onclick = (e) => {
-	document.getElementById("new-candidate-popup").style.display = "flex";
-	document.getElementById("signed-in-flow").style.filter = "blur(5px)";
-};
-
-document.getElementById("close-new-candidate-popup").onclick = (e) => {
-	document.getElementById("new-candidate-popup").style.display = "none";
-	document.getElementById("signed-in-flow").style.filter = "none";
-};
-
-const randomizeButton = document.getElementById("randomize-candidate");
-
-function startLoadingButton(button) {
-	// const size = button.getBoundingClientRect();
-
-	button.innerHTML = LOADING_SVG;
-	button.style.pointerEvents = "none";
-	button.style.display = "flex";
-	button.style.justifyContent = "center";
-	button.style.alignItems = "center";
-	// button.style.width = size.width + "px";
-	// button.style.height = size.height + "px";
-}
-
-function stopLoadingButton(button, content) {
-	button.innerHTML = content;
-	button.style.pointerEvents = "all";
-	button.style.display = "inherit";
-	// button.style.width = "inherit";
-	// button.style.height = "inherit";
-}
-
-const candidateNameInput = document.getElementById("name");
-
-async function randomizeCandidate() {
-	startLoadingButton(randomizeButton);
-	randomizeAvatar();
-	const randomUser = await fetch("https://randomuser.me/api/", {
-		mode: "cors",
-	});
-	const randomUserData = await randomUser.json();
-	const randomUserName = randomUserData.results[0].name;
-	currentName = randomUserName.first + " " + randomUserName.last;
-	candidateNameInput.value = currentName;
-	stopLoadingButton(randomizeButton, "Randomize!");
-}
-
-randomizeButton.onclick = randomizeCandidate;
-
-const addCandidateButton = document.getElementById("save-new-candidate");
-const addCandidateHitlerButton = document.getElementById(
-	"save-new-candidate-hitler"
-);
-const addCandidateTrumpButton = document.getElementById(
-	"save-new-candidate-trump"
-);
-const addCandidateSantaButton = document.getElementById(
-	"save-new-candidate-santa"
-);
-addCandidateButton.onclick = async () => {
-	try {
-		startLoadingButton(addCandidateButton);
-		// make an update call to the smart contract
-		const response = await window.contract.addCandidate(
-			{
-				// pass the value that the user entered in the greeting field
-				avatar: currentAvatar,
-				name: currentName,
-			},
-			BOATLOAD_OF_GAS
-		);
-
-		updateResponse(response.messages, response.success);
-		updateCandidates();
-		randomizeCandidate();
+	document.getElementById("close-new-candidate-popup").onclick = (e) => {
 		document.getElementById("new-candidate-popup").style.display = "none";
 		document.getElementById("signed-in-flow").style.filter = "none";
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		// re-enable the form, whether the call succeeded or failed
-		stopLoadingButton(addCandidateButton, "Add Candidate");
-	}
-};
-addCandidateHitlerButton.onclick = async () => {
-	try {
-		startLoadingButton(addCandidateHitlerButton);
-		// make an update call to the smart contract
-		const response = await window.contract.addCandidateHitlerMode(
-			{
-				// pass the value that the user entered in the greeting field
-				name: currentName,
-			},
-			BOATLOAD_OF_GAS
-		);
+	};
 
-		updateResponse(response.messages, response.success);
-		updateCandidates();
+	const randomizeButton = document.getElementById("randomize-candidate");
+
+	function startLoadingButton(button) {
+		// const size = button.getBoundingClientRect();
+
+		button.innerHTML = LOADING_SVG;
+		button.style.pointerEvents = "none";
+		button.style.display = "flex";
+		button.style.justifyContent = "center";
+		button.style.alignItems = "center";
+		// button.style.width = size.width + "px";
+		// button.style.height = size.height + "px";
+	}
+
+	function stopLoadingButton(button, content) {
+		button.innerHTML = content;
+		button.style.pointerEvents = "all";
+		button.style.display = "inherit";
+		// button.style.width = "inherit";
+		// button.style.height = "inherit";
+	}
+
+	const candidateNameInput = document.getElementById("name");
+
+	async function randomizeCandidate() {
+		startLoadingButton(randomizeButton);
+		randomizeAvatar();
+		const randomUser = await fetch("https://randomuser.me/api/", {
+			mode: "cors",
+		});
+		const randomUserData = await randomUser.json();
+		const randomUserName = randomUserData.results[0].name;
+		currentName = randomUserName.first + " " + randomUserName.last;
+		candidateNameInput.value = currentName;
+		stopLoadingButton(randomizeButton, "Randomize!");
+	}
+
+	randomizeButton.onclick = randomizeCandidate;
+
+	const addCandidateButton = document.getElementById("save-new-candidate");
+	const addCandidateHitlerButton = document.getElementById(
+		"save-new-candidate-hitler"
+	);
+	const addCandidateTrumpButton = document.getElementById(
+		"save-new-candidate-trump"
+	);
+	const addCandidateSantaButton = document.getElementById(
+		"save-new-candidate-santa"
+	);
+
+	addCandidateButton.onclick = async () => {
+		try {
+			startLoadingButton(addCandidateButton);
+			// make an update call to the smart contract
+			const response = await window.contract.addCandidate(
+				{
+					// pass the value that the user entered in the greeting field
+					avatar: currentAvatar,
+					name: currentName,
+				},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+			randomizeCandidate();
+			document.getElementById("new-candidate-popup").style.display =
+				"none";
+			document.getElementById("signed-in-flow").style.filter = "none";
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			// re-enable the form, whether the call succeeded or failed
+			stopLoadingButton(addCandidateButton, "Add Candidate");
+		}
+	};
+
+	addCandidateHitlerButton.onclick = async () => {
+		try {
+			startLoadingButton(addCandidateHitlerButton);
+			// make an update call to the smart contract
+			const response = await window.contract.addCandidateHitlerMode(
+				{
+					// pass the value that the user entered in the greeting field
+					name: currentName,
+				},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+			randomizeCandidate();
+			document.getElementById("new-candidate-popup").style.display =
+				"none";
+			document.getElementById("signed-in-flow").style.filter = "none";
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			// re-enable the form, whether the call succeeded or failed
+			stopLoadingButton(
+				addCandidateHitlerButton,
+				`<img src="https://img.icons8.com/dusk/64/000000/hitler--v1.png" />`
+			);
+		}
+	};
+
+	addCandidateTrumpButton.onclick = async () => {
+		try {
+			startLoadingButton(addCandidateTrumpButton);
+			// make an update call to the smart contract
+			const response = await window.contract.addCandidateTrumpMode(
+				{
+					// pass the value that the user entered in the greeting field
+					avatar: currentAvatar,
+					name: currentName,
+				},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+			randomizeCandidate();
+			document.getElementById("new-candidate-popup").style.display =
+				"none";
+			document.getElementById("signed-in-flow").style.filter = "none";
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			// re-enable the form, whether the call succeeded or failed
+			stopLoadingButton(
+				addCandidateTrumpButton,
+				`<img src="https://img.icons8.com/color/48/000000/donald-trump.png" />`
+			);
+		}
+	};
+
+	addCandidateSantaButton.onclick = async () => {
+		try {
+			startLoadingButton(addCandidateSantaButton);
+			// make an update call to the smart contract
+			const response = await window.contract.addCandidateSantaMode(
+				{
+					// pass the value that the user entered in the greeting field
+					avatar: currentAvatar,
+					name: currentName,
+				},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+			randomizeCandidate();
+			document.getElementById("new-candidate-popup").style.display =
+				"none";
+			document.getElementById("signed-in-flow").style.filter = "none";
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			// re-enable the form, whether the call succeeded or failed
+			stopLoadingButton(
+				addCandidateSantaButton,
+				`<img src="https://img.icons8.com/office/80/000000/santa.png" />`
+			);
+		}
+	};
+
+	const clearVoteButton = document.getElementById("clear-vote");
+	clearVoteButton.onclick = async (e) => {
+		try {
+			startLoadingButton(clearVoteButton);
+			const response = await window.contract.removeVote(
+				{},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			stopLoadingButton(clearVoteButton, "Clear Your Vote");
+		}
+	};
+
+	const restartElectionButton = document.getElementById("restart-election");
+	restartElectionButton.onclick = async (e) => {
+		try {
+			startLoadingButton(restartElectionButton);
+			const response = await window.contract.startNewElection(
+				{},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			stopLoadingButton(restartElectionButton, "Clear Your Vote");
+		}
+	};
+
+	const randomVoteButton = document.getElementById("random-vote");
+	randomVoteButton.onclick = async (e) => {
+		try {
+			startLoadingButton(randomVoteButton);
+			const response = await window.contract.vote360NoScopeMode(
+				{},
+				BOATLOAD_OF_GAS
+			);
+
+			updateResponse(response.messages, response.success);
+			updateCandidates();
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		} finally {
+			stopLoadingButton(randomVoteButton, "360° No Scope Vote");
+		}
+	};
+
+	document.querySelector("#sign-in-button").onclick = login;
+	document.querySelector("#sign-out-button").onclick = logout;
+
+	// Display the signed-out-flow container
+	function signedOutFlow() {
+		document.querySelector("#signed-out-flow").style.display = "block";
+	}
+
+	// Displaying the signed in flow container and fill in account-specific data
+	function signedInFlow() {
+		document.querySelector("#signed-in-flow").style.display = "block";
+
+		document
+			.querySelectorAll("[data-behavior=account-id]")
+			.forEach((el) => {
+				el.innerText = window.accountId;
+			});
+
 		randomizeCandidate();
-		document.getElementById("new-candidate-popup").style.display = "none";
-		document.getElementById("signed-in-flow").style.filter = "none";
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		// re-enable the form, whether the call succeeded or failed
-		stopLoadingButton(
-			addCandidateHitlerButton,
-			`<img src="https://img.icons8.com/dusk/64/000000/hitler--v1.png" />`
-		);
-	}
-};
-addCandidateTrumpButton.onclick = async () => {
-	try {
-		startLoadingButton(addCandidateTrumpButton);
-		// make an update call to the smart contract
-		const response = await window.contract.addCandidateTrumpMode(
-			{
-				// pass the value that the user entered in the greeting field
-				avatar: currentAvatar,
-				name: currentName,
-			},
-			BOATLOAD_OF_GAS
-		);
-
-		updateResponse(response.messages, response.success);
 		updateCandidates();
-		randomizeCandidate();
-		document.getElementById("new-candidate-popup").style.display = "none";
-		document.getElementById("signed-in-flow").style.filter = "none";
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		// re-enable the form, whether the call succeeded or failed
-		stopLoadingButton(
-			addCandidateTrumpButton,
-			`<img src="https://img.icons8.com/color/48/000000/donald-trump.png" />`
-		);
-	}
-};
-addCandidateSantaButton.onclick = async () => {
-	try {
-		startLoadingButton(addCandidateSantaButton);
-		// make an update call to the smart contract
-		const response = await window.contract.addCandidateSantaMode(
-			{
-				// pass the value that the user entered in the greeting field
-				avatar: currentAvatar,
-				name: currentName,
-			},
-			BOATLOAD_OF_GAS
-		);
-
-		updateResponse(response.messages, response.success);
-		updateCandidates();
-		randomizeCandidate();
-		document.getElementById("new-candidate-popup").style.display = "none";
-		document.getElementById("signed-in-flow").style.filter = "none";
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		// re-enable the form, whether the call succeeded or failed
-		stopLoadingButton(
-			addCandidateSantaButton,
-			`<img src="https://img.icons8.com/office/80/000000/santa.png" />`
-		);
-	}
-};
-
-const clearVoteButton = document.getElementById("clear-vote");
-clearVoteButton.onclick = async (e) => {
-	try {
-		startLoadingButton(clearVoteButton);
-		const response = await window.contract.removeVote({}, BOATLOAD_OF_GAS);
-
-		updateResponse(response.messages, response.success);
-		updateCandidates();
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		stopLoadingButton(clearVoteButton, "Clear Your Vote");
-	}
-};
-
-const restartElectionButton = document.getElementById("restart-election");
-restartElectionButton.onclick = async (e) => {
-	try {
-		startLoadingButton(restartElectionButton);
-		const response = await window.contract.startNewElection(
-			{},
-			BOATLOAD_OF_GAS
-		);
-
-		updateResponse(response.messages, response.success);
-		updateCandidates();
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		stopLoadingButton(restartElectionButton, "Clear Your Vote");
-	}
-};
-
-const randomVoteButton = document.getElementById("random-vote");
-randomVoteButton.onclick = async (e) => {
-	try {
-		startLoadingButton(randomVoteButton);
-		const response = await window.contract.vote360NoScopeMode(
-			{},
-			BOATLOAD_OF_GAS
-		);
-
-		updateResponse(response.messages, response.success);
-		updateCandidates();
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
-	} finally {
-		stopLoadingButton(randomVoteButton, "360° No Scope Vote");
-	}
-};
-
-document.querySelector("#sign-in-button").onclick = login;
-document.querySelector("#sign-out-button").onclick = logout;
-
-// Display the signed-out-flow container
-function signedOutFlow() {
-	document.querySelector("#signed-out-flow").style.display = "block";
-}
-
-// Displaying the signed in flow container and fill in account-specific data
-function signedInFlow() {
-	document.querySelector("#signed-in-flow").style.display = "block";
-
-	document.querySelectorAll("[data-behavior=account-id]").forEach((el) => {
-		el.innerText = window.accountId;
-	});
-
-	randomizeCandidate();
-	updateCandidates();
-}
-
-const responseContainer = document.getElementById("response");
-
-function updateResponse(messages, success) {
-	responseContainer.classList.toggle("error", success === false);
-	responseContainer.classList.toggle("success", success === true);
-	responseContainer.classList.add("shake");
-	responseContainer.innerHTML =
-		"<span>" + messages.join("</span><span>") + "</span>";
-	setTimeout(() => {
-		responseContainer.classList.remove("shake");
-	}, 600);
-}
-
-function randomizeAvatar(avatar) {
-	currentAvatar = Date.now().toString();
-	avatarContainer.src =
-		"https://avatars.dicebear.com/api/open-peeps/" + currentAvatar + ".svg";
-}
-
-function sortByVotes(a, b) {
-	if (a.value.voteCount > b.value.voteCount) {
-		return -1;
-	} else if (a.value.voteCount < b.value.voteCount) {
-		return 1;
 	}
 
-	return 0;
-}
+	const responseContainer = document.getElementById("response");
 
-const candidateListContainer = document.getElementById("candidate-list");
-async function updateCandidates() {
-	try {
-		// make an update call to the smart contract
-		const candidates = await window.contract.viewCandidates();
+	function updateResponse(messages, success) {
+		responseContainer.classList.toggle("error", success === false);
+		responseContainer.classList.toggle("success", success === true);
+		responseContainer.classList.add("shake");
+		responseContainer.innerHTML =
+			"<span>" + messages.join("</span><span>") + "</span>";
+		setTimeout(() => {
+			responseContainer.classList.remove("shake");
+		}, 600);
+	}
 
-		candidateListContainer.innerHTML = "";
+	function randomizeAvatar(avatar) {
+		currentAvatar = Date.now().toString();
+		avatarContainer.src =
+			"https://avatars.dicebear.com/api/open-peeps/" +
+			currentAvatar +
+			".svg";
+	}
 
-		const aliveCandidates = candidates.filter(
-			(candidate) => candidate.value.alive
-		);
+	function sortByVotes(a, b) {
+		if (a.value.voteCount > b.value.voteCount) {
+			return -1;
+		} else if (a.value.voteCount < b.value.voteCount) {
+			return 1;
+		}
 
-		aliveCandidates.sort(sortByVotes);
-		const deadCandidates = candidates.filter(
-			(candidate) => candidate.value.alive === false
-		);
-		deadCandidates.sort(sortByVotes);
+		return 0;
+	}
 
-		candidateListContainer.innerHTML += `<strong style="display: flex;text-decoration: underline;">Alive</strong>`;
+	const candidateListContainer = document.getElementById("candidate-list");
+	async function updateCandidates() {
+		try {
+			// make an update call to the smart contract
+			const candidates = await window.contract.viewCandidates();
 
-		for (let i = 0; i < aliveCandidates.length; i += 1) {
-			const candidate = aliveCandidates[i].value;
+			candidateListContainer.innerHTML = "";
 
-			let voteWord = "votes";
-			if (candidate.voteCount == 1) {
-				voteWord = "vote";
-			}
+			const aliveCandidates = candidates.filter(
+				(candidate) => candidate.value.alive
+			);
 
-			let lastElement = "";
-			if (i == aliveCandidates.length - 1) {
-				lastElement = 'style="border-bottom: 0"';
-			}
+			aliveCandidates.sort(sortByVotes);
+			const deadCandidates = candidates.filter(
+				(candidate) => candidate.value.alive === false
+			);
+			deadCandidates.sort(sortByVotes);
 
-			candidateListContainer.innerHTML += `<div class="candidate alive" ${lastElement}>
+			candidateListContainer.innerHTML += `<strong style="display: flex;text-decoration: underline;">Alive</strong>`;
+
+			for (let i = 0; i < aliveCandidates.length; i += 1) {
+				const candidate = aliveCandidates[i].value;
+
+				let voteWord = "votes";
+				if (candidate.voteCount == 1) {
+					voteWord = "vote";
+				}
+
+				let lastElement = "";
+				if (i == aliveCandidates.length - 1) {
+					lastElement = 'style="border-bottom: 0"';
+				}
+
+				candidateListContainer.innerHTML += `<div class="candidate alive" ${lastElement}>
         <div class="rank">${i + 1}</div>
         <img src="https://avatars.dicebear.com/api/open-peeps/${
 			candidate.avatar
@@ -384,24 +394,24 @@ async function updateCandidates() {
           </button>
         </div>
       </div>`;
-		}
-
-		candidateListContainer.innerHTML += `<strong style="display: flex;text-decoration: underline;">Deceased</strong>`;
-
-		for (let i = 0; i < deadCandidates.length; i += 1) {
-			const candidate = deadCandidates[i].value;
-
-			let voteWord = "votes";
-			if (candidate.voteCount == 1) {
-				voteWord = "vote";
 			}
 
-			let lastElement = "";
-			if (i == aliveCandidates.length - 1) {
-				lastElement = 'style="border-bottom: 0"';
-			}
+			candidateListContainer.innerHTML += `<strong style="display: flex;text-decoration: underline;">Deceased</strong>`;
 
-			candidateListContainer.innerHTML += `<div class="candidate dead" ${lastElement}>
+			for (let i = 0; i < deadCandidates.length; i += 1) {
+				const candidate = deadCandidates[i].value;
+
+				let voteWord = "votes";
+				if (candidate.voteCount == 1) {
+					voteWord = "vote";
+				}
+
+				let lastElement = "";
+				if (i == aliveCandidates.length - 1) {
+					lastElement = 'style="border-bottom: 0"';
+				}
+
+				candidateListContainer.innerHTML += `<div class="candidate dead" ${lastElement}>
         <div class="rank">${i + 1}</div>
         <img src="https://avatars.dicebear.com/api/open-peeps/${
 			candidate.avatar
@@ -422,133 +432,137 @@ async function updateCandidates() {
           </button>
         </div>
       </div>`;
-		}
+			}
 
-		candidateListContainer
-			.querySelectorAll(".vote")
-			.forEach((voteButton) => {
-				voteButton.onclick = async (e) => {
-					const target = e.target.closest(".vote");
-					try {
-						startLoadingButton(target);
-						const response = await window.contract.vote(
-							{
-								candidateId: target.getAttribute("data-id"),
-							},
-							BOATLOAD_OF_GAS
-						);
-
-						updateResponse(response.messages, response.success);
-						updateCandidates();
-					} catch (e) {
-						console.log(e);
-						alert(
-							"Something went wrong! " +
-								"Maybe you need to sign out and back in? " +
-								"Check your browser console for more info."
-						);
-						throw e;
-					} finally {
-						// re-enable the form, whether the call succeeded or failed
-						updateCandidates();
-					}
-				};
-			});
-
-		candidateListContainer
-			.querySelectorAll(".kill")
-			.forEach((killButton) => {
-				killButton.onclick = async (e) => {
-					const target = e.target.closest(".kill");
-					try {
-						startLoadingButton(target);
-						const response = await window.contract.removeCandidate(
-							{
-								candidateId: target.getAttribute("data-id"),
-							},
-							BOATLOAD_OF_GAS
-						);
-
-						updateResponse(response.messages, response.success);
-						updateCandidates();
-					} catch (e) {
-						console.log(e);
-						alert(
-							"Something went wrong! " +
-								"Maybe you need to sign out and back in? " +
-								"Check your browser console for more info."
-						);
-						throw e;
-					} finally {
-						// re-enable the form, whether the call succeeded or failed
-						updateCandidates();
-					}
-				};
-			});
-
-		candidateListContainer
-			.querySelectorAll(".revive")
-			.forEach((reviveButton) => {
-				reviveButton.onclick = async (e) => {
-					const target = e.target.closest(".revive");
-					try {
-						startLoadingButton(target);
-						const response =
-							await window.contract.askCatToReviveCandidate(
+			candidateListContainer
+				.querySelectorAll(".vote")
+				.forEach((voteButton) => {
+					voteButton.onclick = async (e) => {
+						const target = e.target.closest(".vote");
+						try {
+							startLoadingButton(target);
+							const response = await window.contract.vote(
 								{
 									candidateId: target.getAttribute("data-id"),
 								},
 								BOATLOAD_OF_GAS
 							);
 
-						updateResponse(response.messages, response.success);
-						updateCandidates();
-					} catch (e) {
-						console.log(e);
-						alert(
-							"Something went wrong! " +
-								"Maybe you need to sign out and back in? " +
-								"Check your browser console for more info."
-						);
-						throw e;
-					} finally {
-						// re-enable the form, whether the call succeeded or failed
-						updateCandidates();
-					}
-				};
-			});
+							updateResponse(response.messages, response.success);
+							updateCandidates();
+						} catch (e) {
+							console.log(e);
+							alert(
+								"Something went wrong! " +
+									"Maybe you need to sign out and back in? " +
+									"Check your browser console for more info."
+							);
+							throw e;
+						} finally {
+							// re-enable the form, whether the call succeeded or failed
+							updateCandidates();
+						}
+					};
+				});
 
-		updateVotes(candidates);
-		updateLogs();
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
+			candidateListContainer
+				.querySelectorAll(".kill")
+				.forEach((killButton) => {
+					killButton.onclick = async (e) => {
+						const target = e.target.closest(".kill");
+						try {
+							startLoadingButton(target);
+							const response =
+								await window.contract.removeCandidate(
+									{
+										candidateId:
+											target.getAttribute("data-id"),
+									},
+									BOATLOAD_OF_GAS
+								);
+
+							updateResponse(response.messages, response.success);
+							updateCandidates();
+						} catch (e) {
+							console.log(e);
+							alert(
+								"Something went wrong! " +
+									"Maybe you need to sign out and back in? " +
+									"Check your browser console for more info."
+							);
+							throw e;
+						} finally {
+							// re-enable the form, whether the call succeeded or failed
+							updateCandidates();
+						}
+					};
+				});
+
+			candidateListContainer
+				.querySelectorAll(".revive")
+				.forEach((reviveButton) => {
+					reviveButton.onclick = async (e) => {
+						const target = e.target.closest(".revive");
+						try {
+							startLoadingButton(target);
+							const response =
+								await window.contract.askCatToReviveCandidate(
+									{
+										candidateId:
+											target.getAttribute("data-id"),
+									},
+									BOATLOAD_OF_GAS
+								);
+
+							updateResponse(response.messages, response.success);
+							updateCandidates();
+						} catch (e) {
+							console.log(e);
+							alert(
+								"Something went wrong! " +
+									"Maybe you need to sign out and back in? " +
+									"Check your browser console for more info."
+							);
+							throw e;
+						} finally {
+							// re-enable the form, whether the call succeeded or failed
+							updateCandidates();
+						}
+					};
+				});
+
+			updateVotes(candidates);
+			updateLogs();
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
+		}
 	}
-}
 
-const voteListContainer = document.getElementById("vote-list");
-async function updateVotes(candidates) {
-	try {
-		// make an update call to the smart contract
-		const votes = await window.contract.viewVotes();
+	const voteListContainer = document.getElementById("vote-list");
+	async function updateVotes(candidates) {
+		try {
+			// make an update call to the smart contract
+			const votes = await window.contract.viewVotes();
 
-		voteListContainer.innerHTML = "";
+			voteListContainer.innerHTML = "";
 
-		for (let i = 0; i < votes.length; i += 1) {
-			const voter = votes[i].key;
-			const votedFor = candidates[votes[i].value.candidateId].value.name;
+			for (let i = 0; i < votes.length; i += 1) {
+				const voter = votes[i].key;
+				const votedFor =
+					candidates[votes[i].value.candidateId].value.name;
 
-			let lastElement = "";
-			if (i == votes.length - 1) {
-				lastElement = 'style="border-bottom: 0"';
-			}
+				let lastElement = "";
+				if (i == votes.length - 1) {
+					lastElement = 'style="border-bottom: 0"';
+				}
 
-			voteListContainer.innerHTML += `<div class="vote" ${lastElement}>
+				voteListContainer.innerHTML += `<div class="vote" ${lastElement}>
         <div class="details">
           <strong>${votedFor}</strong>
           <span>${voter}</span>
@@ -557,92 +571,97 @@ async function updateVotes(candidates) {
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 22h-5v-12h5v12zm17.615-8.412c-.857-.115-.578-.734.031-.922.521-.16 1.354-.5 1.354-1.51 0-.672-.5-1.562-2.271-1.49-1.228.05-3.666-.198-4.979-.885.906-3.656.688-8.781-1.688-8.781-1.594 0-1.896 1.807-2.375 3.469-1.221 4.242-3.312 6.017-5.687 6.885v10.878c4.382.701 6.345 2.768 10.505 2.768 3.198 0 4.852-1.735 4.852-2.666 0-.335-.272-.573-.96-.626-.811-.062-.734-.812.031-.953 1.268-.234 1.826-.914 1.826-1.543 0-.529-.396-1.022-1.098-1.181-.837-.189-.664-.757.031-.812 1.133-.09 1.688-.764 1.688-1.41 0-.565-.424-1.109-1.26-1.221z"/></svg>
         </div>
 		  </div>`;
+			}
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
 		}
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
 	}
-}
 
-const logListContainer = document.getElementById("log-list");
-async function updateLogs() {
-	try {
-		// make an update call to the smart contract
-		let logs = await window.contract.viewLogs();
+	const logListContainer = document.getElementById("log-list");
+	async function updateLogs() {
+		try {
+			// make an update call to the smart contract
+			let logs = await window.contract.viewLogs();
 
-		logs = logs.reverse();
+			logs = logs.reverse();
 
-		logListContainer.innerHTML = "";
+			logListContainer.innerHTML = "";
 
-		for (let i = 0; i < logs.length; i += 1) {
-			logListContainer.innerHTML += `<div class="log">
+			for (let i = 0; i < logs.length; i += 1) {
+				logListContainer.innerHTML += `<div class="log">
           <span>${logs[i].value.user}</span>
           <strong>${logs[i].value.action}</strong>
 		  </div>`;
+			}
+		} catch (e) {
+			console.log(e);
+			alert(
+				"Something went wrong! " +
+					"Maybe you need to sign out and back in? " +
+					"Check your browser console for more info."
+			);
+			throw e;
 		}
-	} catch (e) {
-		console.log(e);
-		alert(
-			"Something went wrong! " +
-				"Maybe you need to sign out and back in? " +
-				"Check your browser console for more info."
-		);
-		throw e;
 	}
-}
 
-// `nearInitPromise` gets called on page load
-window.nearInitPromise = initContract()
-	.then(() => {
-		if (window.walletConnection.isSignedIn()) signedInFlow();
-		else signedOutFlow();
-	})
-	.catch(console.error);
+	// `nearInitPromise` gets called on page load
+	window.nearInitPromise = initContract()
+		.then(() => {
+			if (window.walletConnection.isSignedIn()) signedInFlow();
+			else signedOutFlow();
+		})
+		.catch(console.error);
 
-let s = {};
-s.a = document.getElementById("snowfall-element");
-s.b = s.a.getContext("2d");
-s.c = function () {
-	this.a = Math.random() * 2 + 2;
-	this.b = Math.random() * s.a.width - this.a - 1 + this.a + 1;
-	this.c = this.b;
-	this.d = Math.random() * 50 + 1;
-	this.e = Math.random();
-	this.f = Math.random() * Math.PI * 2;
-	this.g = Math.random() * 1.5 + 0.5;
-	this.i = Math.random() * s.a.height - this.a - 1 + this.a + 1;
-	this.j = () => {
-		if (this.i > s.a.height + this.a) {
-			this.i = -this.a;
-		} else {
-			this.i += this.g;
-		}
-		this.f += 0.02;
-		this.b = this.c + this.d * Math.sin(this.f);
-		s.b.fillStyle = "rgba(255,255,255," + this.e + ")";
-		s.b.fillRect(this.b, this.i, this.a, this.a);
+	let s = {};
+	s.a = document.getElementById("snowfall-element");
+	s.b = s.a.getContext("2d");
+	s.c = function () {
+		this.a = Math.random() * 2 + 2;
+		this.b = Math.random() * s.a.width - this.a - 1 + this.a + 1;
+		this.c = this.b;
+		this.d = Math.random() * 50 + 1;
+		this.e = Math.random();
+		this.f = Math.random() * Math.PI * 2;
+		this.g = Math.random() * 1.5 + 0.5;
+		this.i = Math.random() * s.a.height - this.a - 1 + this.a + 1;
+		this.j = () => {
+			if (this.i > s.a.height + this.a) {
+				this.i = -this.a;
+			} else {
+				this.i += this.g;
+			}
+			this.f += 0.02;
+			this.b = this.c + this.d * Math.sin(this.f);
+			s.b.fillStyle = "rgba(255,255,255," + this.e + ")";
+			s.b.fillRect(this.b, this.i, this.a, this.a);
+		};
 	};
-};
-s.e = () => {
-	s.a.width = window.innerWidth;
-	s.a.height = window.innerHeight;
-	s.d = [];
-	for (let x = 0; x < Math.ceil((s.a.width * s.a.height) / 15000); x += 1) {
-		s.d.push(new s.c());
-	}
-};
-window.addEventListener("resize", s.e);
-s.f = () => {
-	requestAnimationFrame(s.f);
-	s.b.clearRect(0, 0, s.a.width, s.a.height);
-	for (let x in s.d) {
-		s.d[x].j();
-	}
-};
-s.e();
-s.f();
+	s.e = () => {
+		s.a.width = window.innerWidth;
+		s.a.height = window.innerHeight;
+		s.d = [];
+		for (
+			let x = 0;
+			x < Math.ceil((s.a.width * s.a.height) / 15000);
+			x += 1
+		) {
+			s.d.push(new s.c());
+		}
+	};
+	window.addEventListener("resize", s.e);
+	s.f = () => {
+		requestAnimationFrame(s.f);
+		s.b.clearRect(0, 0, s.a.width, s.a.height);
+		for (let x in s.d) {
+			s.d[x].j();
+		}
+	};
+	s.e();
+	s.f();
+});
